@@ -1,4 +1,4 @@
-import { Edit2, Plus, Save, Trash2, X } from "lucide-react";
+import { Edit2, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { SectionHeader } from "../../components/SectionHeader";
 import { StatCard } from "../../components/StatCard";
@@ -19,10 +19,12 @@ export function ClassroomManager({
   onCreateClassroom,
   onUpdateClassroom,
   onDeleteClassroom,
+  onReassignClassroom,
 }) {
   const [form, setForm] = useState(initialClassroom);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [reassigningId, setReassigningId] = useState(null);
 
   const availableCount = classrooms.filter((c) => c.status === "available").length;
   const disabledCount = classrooms.filter((c) => c.status === "disabled").length;
@@ -81,6 +83,18 @@ export function ClassroomManager({
     }
     if (window.confirm(`确定要删除教室 ${classroom.name} 吗？`)) {
       await onDeleteClassroom(classroom.id);
+    }
+  }
+
+  async function handleReassign(classroom) {
+    if (!window.confirm(`确定要重新分配教室 ${classroom.name} 的所有课次吗？这将更新这些课次的时间和教室。`)) {
+      return;
+    }
+    setReassigningId(classroom.id);
+    try {
+      await onReassignClassroom(classroom.name);
+    } finally {
+      setReassigningId(null);
     }
   }
 
@@ -268,6 +282,17 @@ export function ClassroomManager({
                         </td>
                         <td>
                           <div className="action-buttons">
+                            {usage.sessionCount > 0 && (
+                              <button
+                                className={`icon-button ${classroom.status === "disabled" ? "warning" : ""}`}
+                                onClick={() => handleReassign(classroom)}
+                                type="button"
+                                title="重新分配课次"
+                                disabled={reassigningId === classroom.id}
+                              >
+                                <RefreshCw size={16} className={reassigningId === classroom.id ? "spin" : ""} />
+                              </button>
+                            )}
                             <button
                               className="icon-button"
                               onClick={() => startEdit(classroom)}

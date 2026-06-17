@@ -42,6 +42,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  reassignSessions: (payload) =>
+    request("/schedule/reassign", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  reassignSingleSession: (sessionId) =>
+    request(`/schedule/${sessionId}/reassign`, {
+      method: "POST",
+    }),
   getAttendance: () => request("/attendance"),
   recordAttendance: (payload) =>
     request("/attendance", { method: "POST", body: JSON.stringify(payload) }),

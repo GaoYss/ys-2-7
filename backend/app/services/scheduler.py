@@ -6,7 +6,16 @@ from app.data.store import store
 TIME_SLOTS = ["09:00-11:00", "14:00-16:00", "19:00-21:00"]
 
 
-def is_classroom_available(room_name, time_slot):
+def get_class_student_count(class_id):
+    training_class = next(
+        (item for item in store.classes if item["id"] == class_id), None
+    )
+    if not training_class:
+        return 0
+    return len(training_class.get("students", []))
+
+
+def is_classroom_available(room_name, time_slot, required_capacity=0):
     classroom = next(
         (item for item in store.classrooms if item["name"] == room_name), None
     )
@@ -16,16 +25,60 @@ def is_classroom_available(room_name, time_slot):
         return False
     if time_slot not in classroom["available_times"]:
         return False
+    if required_capacity > 0 and classroom["capacity"] < required_capacity:
+        return False
     return True
 
 
-def find_available_room(preferred_room, time_slot):
-    if is_classroom_available(preferred_room, time_slot):
+def find_available_room(preferred_room, time_slot, required_capacity=0):
+    if is_classroom_available(preferred_room, time_slot, required_capacity):
         return preferred_room
-    for classroom in store.classrooms:
-        if classroom["status"] == "available" and time_slot in classroom["available_times"]:
+    sorted_classrooms = sorted(
+        store.classrooms,
+        key=lambda c: c["capacity"],
+    )
+    for classroom in sorted_classrooms:
+        if classroom["status"] == "available" \
+                and time_slot in classroom["available_times"] \
+                and (required_capacity == 0 or classroom["capacity"] >= required_capacity):
             return classroom["name"]
     return None
+
+
+def find_available_slot_and_room(
+    class_id,
+    preferred_room,
+    required_capacity,
+    exclude_session_id=None,
+):
+    occupied_keys = {
+        (item["date"], item["time"], item["room"])
+        for item in store.schedule
+        if exclude_session_id is None or item["id"] != exclude_session_id
+    }
+    class_occupied = {
+        (item["date"], item["time"])
+        for item in store.schedule
+        if item["class_id"] == class_id
+        and (exclude_session_id is None or item["id"] != exclude_session_id)
+    }
+
+    cursor = date.today()
+    for _ in range(60):
+        if cursor.weekday() < 5:
+            for time_slot in TIME_SLOTS:
+                if (cursor.isoformat(), time_slot) in class_occupied:
+                    continue
+                room = find_available_room(
+                    preferred_room, time_slot, required_capacity
+                )
+                if not room:
+                    continue
+                if (cursor.isoformat(), time_slot, room) in occupied_keys:
+                    continue
+                return cursor.isoformat(), time_slot, room
+        cursor += timedelta(days=1)
+    return None, None, None
 
 
 def generate_schedule(class_id=None, days=10):
@@ -51,8 +104,11 @@ def generate_schedule(class_id=None, days=10):
         attempts += 1
         if cursor.weekday() < 5:
             for training_class in classes:
+                student_count = get_class_student_count(training_class["id"])
                 time_slot = TIME_SLOTS[course_index % len(TIME_SLOTS)]
-                room = find_available_room(training_class["room"], time_slot)
+                room = find_available_room(
+                    training_class["room"], time_slot, student_count
+                )
 
                 if not room:
                     course_index += 1
@@ -60,6 +116,17 @@ def generate_schedule(class_id=None, days=10):
 
                 session_key = (training_class["id"], cursor.isoformat(), time_slot)
                 if session_key in existing_session_keys:
+                    course_index += 1
+                    continue
+
+                occupied_key = (cursor.isoformat(), time_slot, room)
+                room_occupied = any(
+                    s["date"] == cursor.isoformat()
+                    and s["time"] == time_slot
+                    and s["room"] == room
+                    for s in store.schedule
+                )
+                if room_occupied:
                     course_index += 1
                     continue
 
@@ -82,6 +149,43 @@ def generate_schedule(class_id=None, days=10):
         cursor += timedelta(days=1)
 
     return generated
+
+
+def reassign_unavailable_sessions(classroom_name=None):
+    target_sessions = []
+    if classroom_name:
+        target_sessions = [
+            s for s in store.schedule
+            if s["room"] == classroom_name
+        ]
+    else:
+        target_sessions = [
+            s for s in store.schedule
+            if not is_classroom_available(s["room"], s["time"])
+        ]
+
+    reassigned = []
+    for session in target_sessions:
+        student_count = get_class_student_count(session["class_id"])
+        training_class = next(
+            (item for item in store.classes if item["id"] == session["class_id"]), None
+        )
+        preferred_room = training_class["room"] if training_class else session["room"]
+
+        new_date, new_time, new_room = find_available_slot_and_room(
+            session["class_id"],
+            preferred_room,
+            student_count,
+            exclude_session_id=session["id"],
+        )
+
+        if new_date and new_time and new_room:
+            session["date"] = new_date
+            session["time"] = new_time
+            session["room"] = new_room
+            reassigned.append(session)
+
+    return reassigned
 
 
 def enrich_session(session):

@@ -96,6 +96,43 @@ export default function App() {
     await refreshAll();
   }
 
+  async function handleReassignSingle(sessionId) {
+    try {
+      await api.reassignSingleSession(sessionId);
+      await refreshAll();
+    } catch (error) {
+      alert("重新分配失败：没有找到可用的教室和时段");
+    }
+  }
+
+  async function handleReassignAll() {
+    try {
+      const result = await api.reassignSessions({});
+      await refreshAll();
+      if (result && result.length > 0) {
+        alert(`成功重新分配 ${result.length} 个课次`);
+      } else {
+        alert("没有需要重新分配的课次");
+      }
+    } catch (error) {
+      alert("重新分配失败");
+    }
+  }
+
+  async function handleReassignClassroom(classroomName) {
+    try {
+      const result = await api.reassignSessions({ classroom_name: classroomName });
+      await refreshAll();
+      if (result && result.length > 0) {
+        alert(`成功重新分配 ${result.length} 个课次`);
+      } else {
+        alert("该教室没有需要重新分配的课次");
+      }
+    } catch (error) {
+      alert("重新分配失败");
+    }
+  }
+
   const ActiveIcon = tabs.find((tab) => tab.id === activeTab)?.icon || Users;
 
   return (
@@ -161,6 +198,7 @@ export default function App() {
                 onCreateClassroom={handleCreateClassroom}
                 onUpdateClassroom={handleUpdateClassroom}
                 onDeleteClassroom={handleDeleteClassroom}
+                onReassignClassroom={handleReassignClassroom}
               />
             )}
             {activeTab === "schedule" && (
@@ -170,6 +208,8 @@ export default function App() {
                 courses={courses}
                 schedule={schedule}
                 onGenerate={handleGenerateSchedule}
+                onReassignSingle={handleReassignSingle}
+                onReassignAll={handleReassignAll}
               />
             )}
             {activeTab === "attendance" && (

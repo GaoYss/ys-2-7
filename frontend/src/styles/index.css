@@ -380,6 +380,16 @@ td small {
   color: #b42318;
 }
 
+.icon-button.warning {
+  background: #fff3d6;
+  border-color: #f0d595;
+  color: #946200;
+}
+
+.icon-button.warning:hover:not(:disabled) {
+  background: #ffe9b8;
+}
+
 .tips-list {
   display: grid;
   gap: 8px;
@@ -409,6 +419,55 @@ td small {
   font-weight: 600;
   margin-top: 10px;
   padding: 6px 10px;
+}
+
+.reassign-button {
+  align-items: center;
+  background: #f0f6ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 6px;
+  color: #2563eb;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 10px;
+  min-height: 32px;
+  padding: 6px 12px;
+  width: 100%;
+}
+
+.reassign-button:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.reassign-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.room-unavailable .reassign-button {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.room-unavailable .reassign-button:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 900px) {

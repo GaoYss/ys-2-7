@@ -1,15 +1,45 @@
-import { CalendarPlus } from "lucide-react";
+import { CalendarPlus, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { SectionHeader } from "../../components/SectionHeader";
 
-export function ScheduleBoard({ classes, classrooms, courses, schedule, onGenerate }) {
+export function ScheduleBoard({
+  classes,
+  classrooms,
+  courses,
+  schedule,
+  onGenerate,
+  onReassignSingle,
+  onReassignAll,
+}) {
   const [classId, setClassId] = useState("");
   const [days, setDays] = useState(8);
+  const [reassigningId, setReassigningId] = useState(null);
+  const [reassigningAll, setReassigningAll] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
     await onGenerate({ class_id: classId || undefined, days });
   }
+
+  async function handleReassignSingle(sessionId) {
+    setReassigningId(sessionId);
+    try {
+      await onReassignSingle(sessionId);
+    } finally {
+      setReassigningId(null);
+    }
+  }
+
+  async function handleReassignAll() {
+    setReassigningAll(true);
+    try {
+      await onReassignAll();
+    } finally {
+      setReassigningAll(false);
+    }
+  }
+
+  const unavailableCount = schedule.filter((s) => !s.room_available).length;
 
   return (
     <section className="module">
@@ -39,6 +69,17 @@ export function ScheduleBoard({ classes, classrooms, courses, schedule, onGenera
           <CalendarPlus size={18} />
           自动生成课程表
         </button>
+        {unavailableCount > 0 && (
+          <button
+            className="secondary-action"
+            type="button"
+            onClick={handleReassignAll}
+            disabled={reassigningAll}
+          >
+            <RefreshCw size={18} className={reassigningAll ? "spin" : ""} />
+            重新分配 {unavailableCount} 个不可用课次
+          </button>
+        )}
       </form>
 
       <div className="table-panel">
@@ -62,6 +103,16 @@ export function ScheduleBoard({ classes, classrooms, courses, schedule, onGenera
                   ⚠️ 教室当前不可用
                 </div>
               )}
+              <button
+                className="reassign-button"
+                type="button"
+                onClick={() => handleReassignSingle(session.id)}
+                disabled={reassigningId === session.id}
+                title="重新分配"
+              >
+                <RefreshCw size={14} className={reassigningId === session.id ? "spin" : ""} />
+                {reassigningId === session.id ? "分配中..." : "重新分配"}
+              </button>
             </article>
           ))}
         </div>
