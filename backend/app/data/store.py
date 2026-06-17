@@ -55,6 +55,29 @@ class TrainingStore:
             {"id": 2, "session_id": 1, "student_id": 2, "status": "late"},
             {"id": 3, "session_id": 1, "student_id": 3, "status": "absent"},
         ]
+        self.classrooms = [
+            {
+                "id": 1,
+                "name": "A-201",
+                "capacity": 30,
+                "available_times": ["09:00-11:00", "14:00-16:00", "19:00-21:00"],
+                "status": "available",
+            },
+            {
+                "id": 2,
+                "name": "B-105",
+                "capacity": 25,
+                "available_times": ["09:00-11:00", "14:00-16:00"],
+                "status": "available",
+            },
+            {
+                "id": 3,
+                "name": "C-302",
+                "capacity": 40,
+                "available_times": ["09:00-11:00", "14:00-16:00", "19:00-21:00"],
+                "status": "disabled",
+            },
+        ]
 
     def next_id(self, collection):
         values = getattr(self, collection)
@@ -67,6 +90,7 @@ class TrainingStore:
                 "courses": self.courses,
                 "schedule": self.schedule,
                 "attendance": self.attendance,
+                "classrooms": self.classrooms,
             }
         )
 

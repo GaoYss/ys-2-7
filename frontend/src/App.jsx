@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ClipboardCheck, GraduationCap, Users } from "lucide-react";
+import { Building2, CalendarDays, ClipboardCheck, GraduationCap, Users } from "lucide-react";
 import { api } from "./services/api";
 import { ClassManager } from "./features/classes/ClassManager";
+import { ClassroomManager } from "./features/classrooms/ClassroomManager";
 import { ScheduleBoard } from "./features/schedule/ScheduleBoard";
 import { AttendancePanel } from "./features/attendance/AttendancePanel";
 import { HourStats } from "./features/stats/HourStats";
 
 const tabs = [
   { id: "classes", label: "班级管理", icon: Users },
+  { id: "classrooms", label: "教室管理", icon: Building2 },
   { id: "schedule", label: "课程表", icon: CalendarDays },
   { id: "attendance", label: "学员考勤", icon: ClipboardCheck },
   { id: "stats", label: "课时统计", icon: GraduationCap },
@@ -16,6 +18,7 @@ const tabs = [
 export default function App() {
   const [activeTab, setActiveTab] = useState("classes");
   const [classes, setClasses] = useState([]);
+  const [classrooms, setClassrooms] = useState([]);
   const [courses, setCourses] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -35,15 +38,17 @@ export default function App() {
 
   async function refreshAll() {
     setError("");
-    const [classData, courseData, scheduleData, attendanceData, statsData] =
+    const [classData, classroomData, courseData, scheduleData, attendanceData, statsData] =
       await Promise.all([
         api.getClasses(),
+        api.getClassrooms(),
         api.getCourses(),
         api.getSchedule(),
         api.getAttendance(),
         api.getHourStats(),
       ]);
     setClasses(classData);
+    setClassrooms(classroomData);
     setCourses(courseData);
     setSchedule(scheduleData);
     setAttendance(attendanceData);
@@ -73,6 +78,21 @@ export default function App() {
 
   async function handleRecordAttendance(payload) {
     await api.recordAttendance(payload);
+    await refreshAll();
+  }
+
+  async function handleCreateClassroom(payload) {
+    await api.createClassroom(payload);
+    await refreshAll();
+  }
+
+  async function handleUpdateClassroom(id, payload) {
+    await api.updateClassroom(id, payload);
+    await refreshAll();
+  }
+
+  async function handleDeleteClassroom(id) {
+    await api.deleteClassroom(id);
     await refreshAll();
   }
 
@@ -128,13 +148,25 @@ export default function App() {
             {activeTab === "classes" && (
               <ClassManager
                 classes={classes}
+                classrooms={classrooms}
                 onCreateClass={handleCreateClass}
                 onAddStudent={handleAddStudent}
+              />
+            )}
+            {activeTab === "classrooms" && (
+              <ClassroomManager
+                classrooms={classrooms}
+                classes={classes}
+                schedule={schedule}
+                onCreateClassroom={handleCreateClassroom}
+                onUpdateClassroom={handleUpdateClassroom}
+                onDeleteClassroom={handleDeleteClassroom}
               />
             )}
             {activeTab === "schedule" && (
               <ScheduleBoard
                 classes={classes}
+                classrooms={classrooms}
                 courses={courses}
                 schedule={schedule}
                 onGenerate={handleGenerateSchedule}

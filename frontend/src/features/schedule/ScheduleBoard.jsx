@@ -2,7 +2,7 @@ import { CalendarPlus } from "lucide-react";
 import { useState } from "react";
 import { SectionHeader } from "../../components/SectionHeader";
 
-export function ScheduleBoard({ classes, courses, schedule, onGenerate }) {
+export function ScheduleBoard({ classes, classrooms, courses, schedule, onGenerate }) {
   const [classId, setClassId] = useState("");
   const [days, setDays] = useState(8);
 
@@ -45,7 +45,10 @@ export function ScheduleBoard({ classes, courses, schedule, onGenerate }) {
         <SectionHeader eyebrow="Schedule" title="课程表" />
         <div className="schedule-grid">
           {schedule.map((session) => (
-            <article className="schedule-card" key={session.id}>
+            <article
+              className={`schedule-card ${!session.room_available ? "room-unavailable" : ""}`}
+              key={session.id}
+            >
               <span>{session.date}</span>
               <h3>{session.course_title}</h3>
               <p>{session.class_name}</p>
@@ -54,6 +57,11 @@ export function ScheduleBoard({ classes, courses, schedule, onGenerate }) {
                 <small>{session.room}</small>
                 <small>{session.teacher}</small>
               </div>
+              {!session.room_available && (
+                <div className="room-warning">
+                  ⚠️ 教室当前不可用
+                </div>
+              )}
             </article>
           ))}
         </div>

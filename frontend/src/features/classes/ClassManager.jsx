@@ -11,7 +11,7 @@ const initialClass = {
   capacity: 24,
 };
 
-export function ClassManager({ classes, onCreateClass, onAddStudent }) {
+export function ClassManager({ classes, classrooms, onCreateClass, onAddStudent }) {
   const [classForm, setClassForm] = useState(initialClass);
   const [studentForm, setStudentForm] = useState({ classId: "", name: "", phone: "" });
 
@@ -76,11 +76,20 @@ export function ClassManager({ classes, onCreateClass, onAddStudent }) {
             </label>
             <label>
               教室
-              <input
+              <select
                 required
                 value={classForm.room}
                 onChange={(event) => setClassForm({ ...classForm, room: event.target.value })}
-              />
+              >
+                <option value="">选择教室</option>
+                {classrooms
+                  .filter((c) => c.status === "available")
+                  .map((classroom) => (
+                    <option key={classroom.id} value={classroom.name}>
+                      {classroom.name} (容量: {classroom.capacity})
+                    </option>
+                  ))}
+              </select>
             </label>
             <label>
               容量
