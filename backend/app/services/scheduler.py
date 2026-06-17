@@ -85,6 +85,21 @@ def find_available_slot_and_room(
         and (exclude_session_id is None or item["id"] != exclude_session_id)
     }
 
+    eligible_classrooms = [
+        c for c in store.classrooms
+        if c["status"] == "available"
+        and (required_capacity == 0 or c["capacity"] >= required_capacity)
+    ]
+
+    if not eligible_classrooms:
+        available_count = sum(1 for c in store.classrooms if c["status"] == "available")
+        if available_count == 0:
+            return None, None, None, "没有可用的教室"
+        else:
+            max_cap = max((c["capacity"] for c in store.classrooms if c["status"] == "available"), default=0)
+            return None, None, None, f"没有容量足够的教室（需要{required_capacity}人，最大可用{max_cap}人）"
+
+    has_any_free_slot = False
     cursor = date.today()
     for _ in range(60):
         if cursor.weekday() < 5:
@@ -97,10 +112,12 @@ def find_available_slot_and_room(
                 if not room:
                     continue
                 if (cursor.isoformat(), time_slot, room) in occupied_keys:
+                    has_any_free_slot = True
                     continue
-                return cursor.isoformat(), time_slot, room
+                return cursor.isoformat(), time_slot, room, None
         cursor += timedelta(days=1)
-    return None, None, None
+
+    return None, None, None, "未来60天内没有找到空闲的时段和教室组合"
 
 
 def generate_schedule(class_id=None, days=10):
@@ -209,7 +226,7 @@ def reassign_unavailable_sessions(classroom_name=None):
             "reason": reason,
         }
 
-        new_date, new_time, new_room = find_available_slot_and_room(
+        new_date, new_time, new_room, fail_reason = find_available_slot_and_room(
             session["class_id"],
             preferred_room,
             student_count,
@@ -227,7 +244,10 @@ def reassign_unavailable_sessions(classroom_name=None):
                 "new_room": new_room,
             })
         else:
-            failed.append(old_info)
+            failed.append({
+                **old_info,
+                "fail_reason": fail_reason or "未知原因",
+            })
 
     return {
         "success": success,

@@ -63,7 +63,7 @@ def reassign_single(session_id):
         "reason": reason if needs_reassign else "用户手动重新分配",
     }
 
-    new_date, new_time, new_room = find_available_slot_and_room(
+    new_date, new_time, new_room, fail_reason = find_available_slot_and_room(
         session["class_id"],
         preferred_room,
         student_count,
@@ -73,7 +73,10 @@ def reassign_single(session_id):
     if not new_date or not new_time or not new_room:
         return jsonify({
             "success": [],
-            "failed": [old_info],
+            "failed": [{
+                **old_info,
+                "fail_reason": fail_reason or "未知原因",
+            }],
             "total": 1,
             "success_count": 0,
             "failed_count": 1,
