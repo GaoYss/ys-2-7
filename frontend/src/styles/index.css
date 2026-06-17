@@ -421,6 +421,15 @@ td small {
   padding: 6px 10px;
 }
 
+.capacity-info {
+  background: #f0fdf4;
+  border-radius: 6px;
+  color: #15803d;
+  font-size: 12px;
+  margin-top: 10px;
+  padding: 4px 8px;
+}
+
 .reassign-button {
   align-items: center;
   background: #f0f6ff;

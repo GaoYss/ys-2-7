@@ -15,6 +15,28 @@ def get_class_student_count(class_id):
     return len(training_class.get("students", []))
 
 
+def get_classroom_capacity(room_name):
+    classroom = next(
+        (item for item in store.classrooms if item["name"] == room_name), None
+    )
+    if not classroom:
+        return None
+    return classroom["capacity"]
+
+
+def session_needs_reassign(session):
+    student_count = get_class_student_count(session["class_id"])
+    classroom_capacity = get_classroom_capacity(session["room"])
+
+    if not is_classroom_available(session["room"], session["time"]):
+        return True, "教室不可用"
+
+    if classroom_capacity is not None and student_count > classroom_capacity:
+        return True, f"容量不足（{student_count}人 > {classroom_capacity}人）"
+
+    return False, None
+
+
 def is_classroom_available(room_name, time_slot, required_capacity=0):
     classroom = next(
         (item for item in store.classrooms if item["name"] == room_name), None
@@ -161,16 +183,31 @@ def reassign_unavailable_sessions(classroom_name=None):
     else:
         target_sessions = [
             s for s in store.schedule
-            if not is_classroom_available(s["room"], s["time"])
+            if session_needs_reassign(s)[0]
         ]
 
-    reassigned = []
+    success = []
+    failed = []
+
     for session in target_sessions:
+        needs_reassign, reason = session_needs_reassign(session)
+        if not needs_reassign:
+            continue
+
         student_count = get_class_student_count(session["class_id"])
         training_class = next(
             (item for item in store.classes if item["id"] == session["class_id"]), None
         )
         preferred_room = training_class["room"] if training_class else session["room"]
+
+        old_info = {
+            "id": session["id"],
+            "class_name": training_class["name"] if training_class else "未知班级",
+            "old_date": session["date"],
+            "old_time": session["time"],
+            "old_room": session["room"],
+            "reason": reason,
+        }
 
         new_date, new_time, new_room = find_available_slot_and_room(
             session["class_id"],
@@ -183,9 +220,22 @@ def reassign_unavailable_sessions(classroom_name=None):
             session["date"] = new_date
             session["time"] = new_time
             session["room"] = new_room
-            reassigned.append(session)
+            success.append({
+                **old_info,
+                "new_date": new_date,
+                "new_time": new_time,
+                "new_room": new_room,
+            })
+        else:
+            failed.append(old_info)
 
-    return reassigned
+    return {
+        "success": success,
+        "failed": failed,
+        "total": len(target_sessions),
+        "success_count": len(success),
+        "failed_count": len(failed),
+    }
 
 
 def enrich_session(session):
@@ -196,11 +246,20 @@ def enrich_session(session):
     classroom = next(
         (item for item in store.classrooms if item["name"] == session["room"]), None
     )
+    student_count = get_class_student_count(session["class_id"])
+    classroom_capacity = get_classroom_capacity(session["room"])
+    needs_reassign, reassign_reason = session_needs_reassign(session)
+
     return {
         **session,
         "class_name": training_class["name"] if training_class else "未知班级",
         "course_title": course["title"] if course else "未知课程",
         "duration": course["duration"] if course else 0,
         "room_status": classroom["status"] if classroom else "available",
+        "room_capacity": classroom_capacity,
+        "class_size": student_count,
+        "capacity_enough": classroom_capacity is None or student_count <= classroom_capacity,
         "room_available": is_classroom_available(session["room"], session["time"]),
+        "needs_reassign": needs_reassign,
+        "reassign_reason": reassign_reason,
     }

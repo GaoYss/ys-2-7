@@ -6,6 +6,7 @@ from app.services.scheduler import (
     find_available_slot_and_room,
     generate_schedule,
     get_class_student_count,
+    session_needs_reassign,
     reassign_unavailable_sessions,
 )
 
@@ -31,10 +32,10 @@ def generate():
 @schedule_bp.post("/reassign")
 def reassign():
     payload = request.get_json() or {}
-    reassigned = reassign_unavailable_sessions(
+    result = reassign_unavailable_sessions(
         classroom_name=payload.get("classroom_name"),
     )
-    return jsonify([enrich_session(item) for item in reassigned])
+    return jsonify(result)
 
 
 @schedule_bp.post("/<int:session_id>/reassign")
@@ -45,11 +46,22 @@ def reassign_single(session_id):
     if not session:
         return jsonify({"message": "Session not found"}), 404
 
+    needs_reassign, reason = session_needs_reassign(session)
+
     student_count = get_class_student_count(session["class_id"])
     training_class = next(
         (item for item in store.classes if item["id"] == session["class_id"]), None
     )
     preferred_room = training_class["room"] if training_class else session["room"]
+
+    old_info = {
+        "id": session["id"],
+        "class_name": training_class["name"] if training_class else "未知班级",
+        "old_date": session["date"],
+        "old_time": session["time"],
+        "old_room": session["room"],
+        "reason": reason if needs_reassign else "用户手动重新分配",
+    }
 
     new_date, new_time, new_room = find_available_slot_and_room(
         session["class_id"],
@@ -59,10 +71,27 @@ def reassign_single(session_id):
     )
 
     if not new_date or not new_time or not new_room:
-        return jsonify({"message": "没有找到可用的教室和时段"}), 400
+        return jsonify({
+            "success": [],
+            "failed": [old_info],
+            "total": 1,
+            "success_count": 0,
+            "failed_count": 1,
+        }), 200
 
     session["date"] = new_date
     session["time"] = new_time
     session["room"] = new_room
 
-    return jsonify(enrich_session(session))
+    return jsonify({
+        "success": [{
+            **old_info,
+            "new_date": new_date,
+            "new_time": new_time,
+            "new_room": new_room,
+        }],
+        "failed": [],
+        "total": 1,
+        "success_count": 1,
+        "failed_count": 0,
+    })

@@ -96,12 +96,40 @@ export default function App() {
     await refreshAll();
   }
 
+  function formatReassignResult(result) {
+    if (!result) return "";
+
+    let message = `重新分配完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个\n\n`;
+
+    if (result.success && result.success.length > 0) {
+      message += "✅ 成功重新分配：\n";
+      result.success.forEach((item) => {
+        message += `  · ${item.class_name}\n`;
+        message += `    原因：${item.reason}\n`;
+        message += `    原安排：${item.old_date} ${item.old_time} ${item.old_room}\n`;
+        message += `    新安排：${item.new_date} ${item.new_time} ${item.new_room}\n\n`;
+      });
+    }
+
+    if (result.failed && result.failed.length > 0) {
+      message += "❌ 分配失败（未找到合适的教室和时段）：\n";
+      result.failed.forEach((item) => {
+        message += `  · ${item.class_name}\n`;
+        message += `    原因：${item.reason}\n`;
+        message += `    当前安排：${item.old_date} ${item.old_time} ${item.old_room}\n\n`;
+      });
+    }
+
+    return message;
+  }
+
   async function handleReassignSingle(sessionId) {
     try {
-      await api.reassignSingleSession(sessionId);
+      const result = await api.reassignSingleSession(sessionId);
       await refreshAll();
+      alert(formatReassignResult(result));
     } catch (error) {
-      alert("重新分配失败：没有找到可用的教室和时段");
+      alert("重新分配失败：网络错误");
     }
   }
 
@@ -109,10 +137,10 @@ export default function App() {
     try {
       const result = await api.reassignSessions({});
       await refreshAll();
-      if (result && result.length > 0) {
-        alert(`成功重新分配 ${result.length} 个课次`);
-      } else {
+      if (result && result.total === 0) {
         alert("没有需要重新分配的课次");
+      } else {
+        alert(formatReassignResult(result));
       }
     } catch (error) {
       alert("重新分配失败");
@@ -123,10 +151,10 @@ export default function App() {
     try {
       const result = await api.reassignSessions({ classroom_name: classroomName });
       await refreshAll();
-      if (result && result.length > 0) {
-        alert(`成功重新分配 ${result.length} 个课次`);
-      } else {
+      if (result && result.total === 0) {
         alert("该教室没有需要重新分配的课次");
+      } else {
+        alert(formatReassignResult(result));
       }
     } catch (error) {
       alert("重新分配失败");

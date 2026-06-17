@@ -39,7 +39,7 @@ export function ScheduleBoard({
     }
   }
 
-  const unavailableCount = schedule.filter((s) => !s.room_available).length;
+  const needsReassignCount = schedule.filter((s) => s.needs_reassign).length;
 
   return (
     <section className="module">
@@ -69,7 +69,7 @@ export function ScheduleBoard({
           <CalendarPlus size={18} />
           自动生成课程表
         </button>
-        {unavailableCount > 0 && (
+        {needsReassignCount > 0 && (
           <button
             className="secondary-action"
             type="button"
@@ -77,7 +77,7 @@ export function ScheduleBoard({
             disabled={reassigningAll}
           >
             <RefreshCw size={18} className={reassigningAll ? "spin" : ""} />
-            重新分配 {unavailableCount} 个不可用课次
+            重新分配 {needsReassignCount} 个需要调整的课次
           </button>
         )}
       </form>
@@ -87,7 +87,7 @@ export function ScheduleBoard({
         <div className="schedule-grid">
           {schedule.map((session) => (
             <article
-              className={`schedule-card ${!session.room_available ? "room-unavailable" : ""}`}
+              className={`schedule-card ${session.needs_reassign ? "room-unavailable" : ""}`}
               key={session.id}
             >
               <span>{session.date}</span>
@@ -98,9 +98,14 @@ export function ScheduleBoard({
                 <small>{session.room}</small>
                 <small>{session.teacher}</small>
               </div>
-              {!session.room_available && (
+              {session.needs_reassign && (
                 <div className="room-warning">
-                  ⚠️ 教室当前不可用
+                  ⚠️ {session.reassign_reason}
+                </div>
+              )}
+              {!session.needs_reassign && session.room_capacity !== null && (
+                <div className="capacity-info">
+                  容量：{session.class_size}/{session.room_capacity}人
                 </div>
               )}
               <button
